@@ -16,9 +16,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // 代理服务地址
-      
-      proxyUrl: 'https://api.yunxi668.cn/v1/chat/completions',
+      // 代理服务地址（相对路径，通过 Nginx 反向代理到后端）
+      proxyUrl: '/v1/chat/completions',
       apiKeys: {
         openai: '',
         anthropic: '',
