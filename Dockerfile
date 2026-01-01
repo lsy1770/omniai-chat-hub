@@ -25,6 +25,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built files from builder stage to /chat subdirectory
+# Vite builds with base: '/chat/', so assets are referenced as /chat/assets/xxx.js
 COPY --from=builder /app/dist /usr/share/nginx/html/chat
 
 # Create custom Nginx configuration
@@ -32,11 +33,11 @@ RUN echo 'server { \
     listen 80; \
     server_name localhost; \
     \
-    root /usr/share/nginx/html; \
-    \
-    # Serve static files from /chat directory \
-    location / { \
-        try_files $uri $uri/ /chat/index.html; \
+    # Serve /chat and /chat/* using root directive \
+    location /chat { \
+        root /usr/share/nginx/html; \
+        try_files $uri $uri/index.html /chat/index.html; \
+        index index.html; \
     } \
     \
     # Health check endpoint \
