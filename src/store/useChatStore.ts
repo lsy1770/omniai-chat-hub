@@ -93,7 +93,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setCurrentModel: (modelId) => {
+    const state = get();
     set({ currentModelId: modelId });
+
+    // 同时更新当前会话的modelId
+    if (state.currentSessionId) {
+      const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSessionId);
+      if (sessionIndex !== -1) {
+        const newSessions = [...state.sessions];
+        newSessions[sessionIndex].modelId = modelId;
+        set({ sessions: newSessions });
+
+        // 同步更新数据库
+        db.sessions.update(state.currentSessionId, { modelId });
+      }
+    }
   },
 
   loadSessions: async () => {
