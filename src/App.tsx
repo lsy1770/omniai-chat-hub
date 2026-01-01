@@ -8,7 +8,7 @@ import { ModelSelector } from './components/chat/ModelSelector';
 import { ToastContainer } from './components/ui/ToastContainer';
 import {
   Plus, Settings, Send, Loader2, Moon, Sun,
-  Power, MessageCircle, Paperclip, X,Square,Trash2
+  Power, MessageCircle, Paperclip, X, Square, Trash2, Menu
 } from 'lucide-react';
 
 const neuBtn = "flex items-center justify-center rounded-full transition-all active:scale-95 text-gray-500 dark:text-gray-400 shadow-neu-light dark:shadow-neu-dark hover:text-blue-500 dark:hover:text-blue-400";
@@ -34,12 +34,13 @@ function App() {
 
   const { theme, toggleTheme } = useTheme();
   const [input, setInput] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]); // 新增：存储 Base64 图片
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端侧边栏状态
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // 新增：隐藏的文件输入框引用
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadSessions();
@@ -131,29 +132,49 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen p-4 gap-6 bg-light dark:bg-dark overflow-hidden font-sans">
+    <div className="flex h-screen md:p-4 md:gap-6 bg-light dark:bg-dark overflow-hidden font-sans">
       <ToastContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ImagePreview src={previewImage} onClose={() => setPreviewImage(null)} />
 
-      {/* 左侧边栏 (保持不变) */}
-      <aside className={`${neuPanel} w-24 lg:w-72 flex flex-col py-6 px-4 z-20`}>
+      {/* 移动端遮罩层 */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* 左侧边栏 */}
+      <aside className={`
+        ${neuPanel}
+        fixed md:relative
+        inset-y-0 left-0
+        w-72 md:w-72
+        flex flex-col py-6 px-4
+        z-40 md:z-20
+        transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="flex items-center gap-4 px-2 mb-8">
           <div className="w-12 h-12 rounded-full shadow-neu-light dark:shadow-neu-dark flex items-center justify-center text-blue-500">
             <Power size={24} strokeWidth={3} />
           </div>
-          <span className="hidden lg:block font-bold text-xl tracking-wide text-gray-600 dark:text-gray-300">
+          <span className="font-bold text-xl tracking-wide text-gray-600 dark:text-gray-300">
             Omni<span className="text-blue-500">AI</span>
           </span>
         </div>
 
         <button
-          onClick={() => createSession(currentModelId)}
-          className={`${neuBtn} w-12 h-12 lg:w-full lg:h-14 lg:rounded-2xl mb-6 text-blue-600 dark:text-blue-400 group`}
+          onClick={() => {
+            createSession(currentModelId);
+            setIsSidebarOpen(false); // 移动端创建会话后关闭侧边栏
+          }}
+          className={`${neuBtn} w-full h-14 rounded-2xl mb-6 text-blue-600 dark:text-blue-400 group`}
           aria-label="Create new chat session"
         >
           <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-          <span className="hidden lg:block ml-2 font-bold">New Chat</span>
+          <span className="ml-2 font-bold">New Chat</span>
         </button>
 
         <div className="flex-1 overflow-y-auto space-y-4 px-1 py-2 custom-scrollbar"> {/* 加上 custom-scrollbar 美化滚动条 */}
@@ -165,7 +186,10 @@ function App() {
             return (
               <div
                 key={session.id}
-                onClick={() => selectSession(session.id)}
+                onClick={() => {
+                  selectSession(session.id);
+                  setIsSidebarOpen(false); // 移动端选择会话后关闭侧边栏
+                }}
                 className={`group relative cursor-pointer p-4 rounded-2xl transition-all flex flex-col gap-2 ${
                   currentSessionId === session.id
                     ? 'shadow-neu-pressed-light dark:shadow-neu-pressed-dark text-blue-500 scale-[0.98]'
@@ -174,13 +198,13 @@ function App() {
               >
                 <div className="flex items-center gap-3">
                   <MessageCircle size={20} className="shrink-0" />
-                  <span className="hidden lg:block truncate text-sm font-medium flex-1 pr-6">
+                  <span className="truncate text-sm font-medium flex-1 pr-6">
                     {session.title}
                   </span>
                 </div>
 
                 {/* ✅ 显示摘要 */}
-                <p className="hidden lg:block text-xs text-gray-400 dark:text-gray-500 truncate pr-8">
+                <p className="text-xs text-gray-400 dark:text-gray-500 truncate pr-8">
                   {summary}
                 </p>
 
@@ -221,26 +245,35 @@ function App() {
       </aside>
 
       {/* 主对话区 */}
-      <main className={`${neuPanel} flex-1 flex flex-col overflow-hidden`}>
-        <header className="h-20 rounded-t-3xl shadow-neu-light dark:shadow-neu-dark bg-light dark:bg-dark flex items-center justify-between px-8 border-b border-gray-200/50 dark:border-gray-700/50 shrink-0">
-          <div className="flex items-center gap-4">
-             <div className={`w-3 h-3 rounded-full transition-shadow duration-500 ${
-               activeSession ? 'bg-green-500 shadow-[0_0_12px_#22c55e]' : 'bg-gray-400'
-             }`}></div>
+      <main className={`${neuPanel} flex-1 flex flex-col overflow-hidden md:rounded-3xl rounded-none`}>
+        <header className="h-16 md:h-20 md:rounded-t-3xl shadow-neu-light dark:shadow-neu-dark bg-light dark:bg-dark flex items-center justify-between px-4 md:px-8 border-b border-gray-200/50 dark:border-gray-700/50 shrink-0">
+          <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            {/* 移动端汉堡菜单 */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className={`${neuBtn} w-10 h-10 md:hidden`}
+              aria-label="Open sidebar menu"
+            >
+              <Menu size={20} />
+            </button>
 
-             <div className="flex flex-col">
-                <h2 className="font-bold text-lg text-gray-700 dark:text-gray-100 truncate max-w-xs">
-                  {activeSession?.title || 'OmniAI Hub'}
-                </h2>
-                <span className="text-xs text-gray-400 font-medium">
-                  {activeSession ? `${activeSession.messages.length} messages` : 'Start a new conversation'}
-                </span>
-             </div>
+            <div className={`w-3 h-3 rounded-full transition-shadow duration-500 ${
+              activeSession ? 'bg-green-500 shadow-[0_0_12px_#22c55e]' : 'bg-gray-400'
+            }`}></div>
+
+            <div className="flex flex-col min-w-0 flex-1">
+              <h2 className="font-bold text-sm md:text-lg text-gray-700 dark:text-gray-100 truncate">
+                {activeSession?.title || 'OmniAI Hub'}
+              </h2>
+              <span className="text-[10px] md:text-xs text-gray-400 font-medium">
+                {activeSession ? `${activeSession.messages.length} messages` : 'Start a new conversation'}
+              </span>
+            </div>
           </div>
           <ModelSelector />
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 lg:px-20 py-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-3 md:px-4 lg:px-20 py-4 md:py-6">
           {!activeSession ? (
             <div className="h-full flex flex-col items-center justify-center opacity-60">
               <div className="w-32 h-32 rounded-full shadow-neu-light dark:shadow-neu-dark flex items-center justify-center mb-6">
@@ -268,17 +301,17 @@ function App() {
           )}
         </div>
 
-        {/* --- 输入区域 (重构) --- */}
-        <div className="p-6 lg:p-10">
+        {/* --- 输入区域 --- */}
+        <div className="p-3 md:p-6 lg:p-10">
           <div className="max-w-4xl mx-auto relative group">
-            
+
             {/* 预览缩略图区域 */}
             {attachments.length > 0 && (
-              <div className="absolute bottom-full mb-4 left-0 flex gap-3 px-2 animate-slide-up">
+              <div className="absolute bottom-full mb-2 md:mb-4 left-0 flex gap-2 md:gap-3 px-2 animate-slide-up">
                 {attachments.map((src, index) => (
-                  <div key={index} className="relative group/thumb w-16 h-16 rounded-xl shadow-neu-light dark:shadow-neu-dark overflow-hidden border-2 border-white dark:border-gray-700">
+                  <div key={index} className="relative group/thumb w-12 h-12 md:w-16 md:h-16 rounded-xl shadow-neu-light dark:shadow-neu-dark overflow-hidden border-2 border-white dark:border-gray-700">
                     <img src={src} className="w-full h-full object-cover" alt="attachment" />
-                    <button 
+                    <button
                       onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                       className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                     >
@@ -289,7 +322,7 @@ function App() {
               </div>
             )}
 
-            <div className="flex items-end gap-4">
+            <div className="flex items-end gap-2 md:gap-4">
               <div className="flex-1 relative">
                 
                 {/* 隐藏的文件输入框 */}
@@ -305,7 +338,7 @@ function App() {
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste} // 绑定粘贴事件
+                  onPaste={handlePaste}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -314,38 +347,37 @@ function App() {
                   }}
                   disabled={isGenerating}
                   placeholder="Type a message (Ctrl+V to paste image)..."
-                  className={`${neuInput} resize-none h-[60px] pl-14 leading-[1.5]`} // 增加左内边距给图标
+                  className={`${neuInput} resize-none h-[50px] md:h-[60px] pl-12 md:pl-14 pr-3 text-sm md:text-base leading-[1.5]`}
                 />
 
                 {/* 上传按钮 (放在输入框内部左侧) */}
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute left-4 bottom-3 text-gray-400 hover:text-blue-500 transition-colors"
+                  className="absolute left-3 md:left-4 bottom-2 md:bottom-3 text-gray-400 hover:text-blue-500 transition-colors"
                   title="Upload Image"
+                  aria-label="Upload image attachment"
                 >
-                  <Paperclip size={20} />
+                  <Paperclip size={18} className="md:w-5 md:h-5" />
                 </button>
               </div>
 
               <button
-              onClick={isGenerating ? stopGeneration : handleSend} // <--- 点击事件动态切换
-              disabled={(!input.trim() && attachments.length === 0) && !isGenerating} // <--- 生成时按钮永远可用(用于停止)
-              className={`${neuBtn} w-[60px] h-[60px] rounded-2xl shrink-0 transition-colors duration-300 ${
-                isGenerating
-                  ? 'text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-900/10' // 生成时显示红色
-                  : (input.trim() || attachments.length > 0)
-                    ? 'text-blue-500'
-                    : 'text-gray-400 cursor-not-allowed'
-              }`}
-              aria-label={isGenerating ? 'Stop generation' : 'Send message'}
-            >
-              {isGenerating ? (
-                // 停止图标 (实心方块)
-                <Square size={20} fill="currentColor" className="animate-pulse" />
-              ) : (
-                // 发送图标
-                <Send size={24} className={(input.trim() || attachments.length > 0) ? '-ml-1 mt-1' : ''} />
-              )}
+                onClick={isGenerating ? stopGeneration : handleSend}
+                disabled={(!input.trim() && attachments.length === 0) && !isGenerating}
+                className={`${neuBtn} w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-2xl shrink-0 transition-colors duration-300 ${
+                  isGenerating
+                    ? 'text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-900/10'
+                    : (input.trim() || attachments.length > 0)
+                      ? 'text-blue-500'
+                      : 'text-gray-400 cursor-not-allowed'
+                }`}
+                aria-label={isGenerating ? 'Stop generation' : 'Send message'}
+              >
+                {isGenerating ? (
+                  <Square size={18} fill="currentColor" className="animate-pulse md:w-5 md:h-5" />
+                ) : (
+                  <Send size={20} className={`md:w-6 md:h-6 ${(input.trim() || attachments.length > 0) ? '-ml-1 mt-1' : ''}`} />
+                )}
             </button>
             </div>
           </div>
