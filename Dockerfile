@@ -18,33 +18,29 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Build the application
-# Vite will use the base path configured in vite.config.ts
+# Vite will use the base path configured in vite.config.ts (base: '/chat/')
 RUN npm run build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy built files from builder stage
+# Copy built files from builder stage to /chat subdirectory
 COPY --from=builder /app/dist /usr/share/nginx/html/chat
 
-# Create custom Nginx configuration for SPA routing
+# Create custom Nginx configuration
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
     \
-    # Chat UI location \
-    location /chat { \
-        alias /usr/share/nginx/html/chat; \
+    root /usr/share/nginx/html; \
+    \
+    # Serve static files from /chat directory \
+    location / { \
         try_files $uri $uri/ /chat/index.html; \
-        \
-        # Add headers for security \
-        add_header X-Frame-Options "SAMEORIGIN" always; \
-        add_header X-Content-Type-Options "nosniff" always; \
-        add_header X-XSS-Protection "1; mode=block" always; \
     } \
     \
     # Health check endpoint \
-    location /health { \
+    location = /health { \
         access_log off; \
         return 200 "healthy\\n"; \
         add_header Content-Type text/plain; \
