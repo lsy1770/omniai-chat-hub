@@ -1,0 +1,48 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#gradient1)"/>
+
+  <!-- Central AI Brain/Hub -->
+  <circle cx="256" cy="256" r="60" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Connection Nodes (representing multiple AI providers) -->
+  <!-- Top -->
+  <circle cx="256" cy="120" r="35" fill="#60A5FA" opacity="0.85"/>
+  <line x1="256" y1="196" x2="256" y2="155" stroke="#ffffff" stroke-width="6" opacity="0.7"/>
+
+  <!-- Right -->
+  <circle cx="392" cy="256" r="35" fill="#60A5FA" opacity="0.85"/>
+  <line x1="316" y1="256" x2="357" y2="256" stroke="#ffffff" stroke-width="6" opacity="0.7"/>
+
+  <!-- Bottom -->
+  <circle cx="256" cy="392" r="35" fill="#60A5FA" opacity="0.85"/>
+  <line x1="256" y1="316" x2="256" y2="357" stroke="#ffffff" stroke-width="6" opacity="0.7"/>
+
+  <!-- Left -->
+  <circle cx="120" cy="256" r="35" fill="#60A5FA" opacity="0.85"/>
+  <line x1="196" y1="256" x2="155" y2="256" stroke="#ffffff" stroke-width="6" opacity="0.7"/>
+
+  <!-- Chat Bubble in Center -->
+  <path d="M 230 240 Q 230 225 245 225 L 267 225 Q 282 225 282 240 L 282 262 Q 282 277 267 277 L 252 277 L 240 287 L 240 277 L 245 277 Q 230 277 230 262 Z"
+        fill="#3B82F6" opacity="0.9"/>
+
+  <!-- AI Sparkles -->
+  <g opacity="0.8">
+    <!-- Top sparkle -->
+    <path d="M 256 95 L 258 103 L 266 105 L 258 107 L 256 115 L 254 107 L 246 105 L 254 103 Z" fill="#ffffff"/>
+    <!-- Right sparkle -->
+    <path d="M 417 256 L 419 264 L 427 266 L 419 268 L 417 276 L 415 268 L 407 266 L 415 264 Z" fill="#ffffff"/>
+    <!-- Bottom sparkle -->
+    <path d="M 256 417 L 258 425 L 266 427 L 258 429 L 256 437 L 254 429 L 246 427 L 254 425 Z" fill="#ffffff"/>
+    <!-- Left sparkle -->
+    <path d="M 95 256 L 97 264 L 105 266 L 97 268 L 95 276 L 93 268 L 85 266 L 93 264 Z" fill="#ffffff"/>
+  </g>
+
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>
