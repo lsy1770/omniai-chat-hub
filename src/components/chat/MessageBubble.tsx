@@ -5,25 +5,31 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import type { Message } from '../../types';
 import { Bot, User, Copy, Check, Download, Maximize2, FileText, Code } from 'lucide-react';
-import DOMPurify from 'dompurify';
 
 interface Props {
   message: Message;
-  onImageClick?: (src: string) => void; // 新增回调
+  onImageClick?: (src: string) => void;
+  onHtmlPreview?: (html: string) => void; // 新增HTML预览回调
 }
 
 // 拟物化小按钮样式
 const actionBtnClass = "p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-all hover:bg-gray-200 dark:hover:bg-white/5 active:scale-95";
 
-export const MessageBubble: React.FC<Props> = ({ message, onImageClick }) => {
+export const MessageBubble: React.FC<Props> = ({ message, onImageClick, onHtmlPreview }) => {
   const isUser = message.role === 'user';
   const [isCopied, setIsCopied] = useState(false);
-  const [renderAsHtml, setRenderAsHtml] = useState(false);
 
-  // 检测内容是否包含HTML标签
+  // 检测内容是否包含完整HTML文档或HTML标签
   const containsHtml = useMemo(() => {
-    const htmlPattern = /<[^>]+>/;
-    return htmlPattern.test(message.content);
+    const content = message.content.trim();
+    // 检测是否是完整HTML文档
+    if (content.toLowerCase().includes('<!doctype html') ||
+        content.toLowerCase().includes('<html')) {
+      return true;
+    }
+    // 检测是否包含块级HTML元素
+    const blockHtmlPattern = /<(div|section|article|main|header|footer|nav|aside|table|form|ul|ol|dl|h[1-6]|p)[^>]*>/i;
+    return blockHtmlPattern.test(content);
   }, [message.content]);
 
   // 复制全文
@@ -45,23 +51,12 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick }) => {
     document.body.removeChild(a);
   };
 
-  // 切换HTML/Markdown渲染模式
-  const toggleRenderMode = () => {
-    setRenderAsHtml(!renderAsHtml);
-  };
-
-  // 清理并渲染HTML
-  const sanitizedHtml = useMemo(() => {
-    if (renderAsHtml && containsHtml) {
-      return DOMPurify.sanitize(message.content, {
-        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                       'ul', 'ol', 'li', 'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                       'div', 'span', 'pre', 'code', 'blockquote', 'hr'],
-        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'style'],
-      });
+  // 打开HTML预览
+  const handleHtmlPreview = () => {
+    if (onHtmlPreview) {
+      onHtmlPreview(message.content);
     }
-    return '';
-  }, [renderAsHtml, containsHtml, message.content]);
+  };
 
   return (
     <div className={`group flex gap-6 w-full ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -111,19 +106,10 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick }) => {
           {isUser ? (
             <div className="whitespace-pre-wrap font-medium">{message.content}</div>
           ) : (
-            <>
-              {renderAsHtml && containsHtml ? (
-                // HTML渲染模式
-                <div
-                  className="prose prose-sm max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-                />
-              ) : (
-                // Markdown渲染模式（默认）
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
                       // 自定义代码块渲染
                       code({ node, inline, className, children, ...props }: any) {
                         const match = /language-(\w+)/.exec(className || '');
@@ -212,8 +198,6 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick }) => {
                     {message.content}
                   </ReactMarkdown>
                 </div>
-              )}
-            </>
           )}
         </div>
 
@@ -235,14 +219,15 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick }) => {
             <FileText size={16} />
           </button>
 
-          {/* 如果检测到HTML标签，显示切换按钮 */}
+          {/* 如果检测到HTML标签，显示预览按钮 */}
           {!isUser && containsHtml && (
             <button
-              onClick={toggleRenderMode}
-              className={`${actionBtnClass} ${renderAsHtml ? 'text-blue-500' : ''}`}
-              title={renderAsHtml ? '切换到 Markdown 模式' : '切换到 HTML 模式'}
+              onClick={handleHtmlPreview}
+              className={`${actionBtnClass} flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 text-blue-600 dark:text-blue-400 font-medium`}
+              title="在新窗口预览 HTML"
             >
               <Code size={16} />
+              <span className="text-xs">Preview HTML</span>
             </button>
           )}
         </div>

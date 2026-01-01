@@ -4,6 +4,7 @@ import { useTheme } from './hooks/useTheme';
 import { MessageBubble } from './components/chat/MessageBubble';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ImagePreview } from './components/ui/ImagePreview';
+import { HtmlPreview } from './components/ui/HtmlPreview';
 import { ModelSelector } from './components/chat/ModelSelector';
 import { ToastContainer } from './components/ui/ToastContainer';
 import {
@@ -37,6 +38,7 @@ function App() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [htmlPreviewContent, setHtmlPreviewContent] = useState<string | null>(null); // HTML预览内容
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端侧边栏状态
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -136,6 +138,7 @@ function App() {
       <ToastContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ImagePreview src={previewImage} onClose={() => setPreviewImage(null)} />
+      <HtmlPreview htmlContent={htmlPreviewContent} onClose={() => setHtmlPreviewContent(null)} />
 
       {/* 移动端遮罩层 */}
       {isSidebarOpen && (
@@ -288,6 +291,7 @@ function App() {
                   key={msg.id}
                   message={msg}
                   onImageClick={(src) => setPreviewImage(src)}
+                  onHtmlPreview={(html) => setHtmlPreviewContent(html)}
                 />
               ))}
               {isGenerating && (
