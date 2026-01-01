@@ -16,10 +16,9 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // 固定代理服务地址
-      //'http://localhost:8080/v1/chat/completions', 
-      //'https://api.yunxi668.cn/v1/chat/completions',
-      proxyUrl: 'http://localhost:8080/v1/chat/completions',  
+      // 代理服务地址
+      
+      proxyUrl: 'https://api.yunxi668.cn/v1/chat/completions',
       apiKeys: {
         openai: '',
         anthropic: '',
