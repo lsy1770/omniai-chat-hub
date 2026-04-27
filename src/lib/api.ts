@@ -36,7 +36,8 @@ async function apiFetch(url: string, options: RequestInit = {}, apiKey?: string)
   }
 
   // 3. 自动注入 Content-Type (如果是 POST/PUT 且未设置)
-  if (!headers.has('Content-Type') && options.method && options.method !== 'GET') {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (!headers.has('Content-Type') && options.method && options.method !== 'GET' && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -227,4 +228,143 @@ export async function streamCompletion({
     console.error('Stream error:', err);
     if (onError) onError(err);
   }
+}
+
+export interface ImageGenerationOptions {
+  url: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+  n?: number;
+  size?: string;
+  quality?: string;
+  background?: string;
+  output_format?: 'png' | 'jpeg' | 'webp';
+  output_compression?: number;
+  signal?: AbortSignal;
+}
+
+export interface ImageEditOptions extends Omit<ImageGenerationOptions, 'n'> {
+  image: File;
+  mask?: File;
+  n?: number;
+}
+
+export interface OpenAIImageResult {
+  src: string;
+  revisedPrompt?: string;
+}
+
+interface OpenAIImagesResponse {
+  data?: Array<{
+    b64_json?: string;
+    url?: string;
+    revised_prompt?: string;
+  }>;
+}
+
+function resolveImagesEndpoint(baseUrl: string, action: 'generations' | 'edits') {
+  const endpoint = `/images/${action}`;
+  const fallback = `/openai/v1${endpoint}`;
+  const trimmed = baseUrl.trim();
+
+  if (!trimmed) return fallback;
+
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    const isRelative = trimmed.startsWith('/');
+    const isOpenAIDirect = /(^|\.)openai\.com$/i.test(url.hostname);
+
+    if ((isRelative || !isOpenAIDirect) && url.pathname === '/v1/chat/completions') {
+      url.pathname = `/openai/v1${endpoint}`;
+      return isRelative ? `${url.pathname}${url.search}` : url.toString();
+    }
+
+    if (url.pathname.includes('/chat/completions')) {
+      url.pathname = url.pathname.replace(/\/chat\/completions\/?$/, endpoint);
+      return isRelative ? `${url.pathname}${url.search}` : url.toString();
+    }
+
+    if (url.pathname.endsWith('/v1')) {
+      url.pathname = `${url.pathname}${endpoint}`;
+      return isRelative ? `${url.pathname}${url.search}` : url.toString();
+    }
+
+    url.pathname = `${url.pathname.replace(/\/+$/, '')}/v1${endpoint}`;
+    return isRelative ? `${url.pathname}${url.search}` : url.toString();
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeImageResults(payload: OpenAIImagesResponse, outputFormat = 'png'): OpenAIImageResult[] {
+  const mime = outputFormat === 'jpeg' ? 'image/jpeg' : outputFormat === 'webp' ? 'image/webp' : 'image/png';
+
+  return (payload.data || []).reduce<OpenAIImageResult[]>((items, item) => {
+    const src = item.b64_json ? `data:${mime};base64,${item.b64_json}` : item.url;
+    if (!src) return items;
+
+    items.push({
+      src,
+      ...(item.revised_prompt ? { revisedPrompt: item.revised_prompt } : {}),
+    });
+    return items;
+  }, []);
+}
+
+export async function generateOpenAIImage(options: ImageGenerationOptions): Promise<OpenAIImageResult[]> {
+  const body: Record<string, unknown> = {
+    model: options.model,
+    prompt: options.prompt,
+    n: options.n || 1,
+    response_format: 'b64_json',
+  };
+
+  if (options.size) body.size = options.size;
+  if (options.quality) body.quality = options.quality;
+  if (options.background) body.background = options.background;
+  if (options.output_format) body.output_format = options.output_format;
+  if (options.output_compression) body.output_compression = options.output_compression;
+
+  const response = await apiFetch(resolveImagesEndpoint(options.url, 'generations'), {
+    method: 'POST',
+    body: JSON.stringify(body),
+    signal: options.signal,
+  }, options.apiKey);
+
+  const payload = await response.json();
+  const results = normalizeImageResults(payload, options.output_format || 'png');
+  if (results.length === 0) {
+    throw new Error('Images API returned no images');
+  }
+  return results;
+}
+
+export async function editOpenAIImage(options: ImageEditOptions): Promise<OpenAIImageResult[]> {
+  const form = new FormData();
+  form.append('model', options.model);
+  form.append('prompt', options.prompt);
+  form.append('n', String(options.n || 1));
+  form.append('response_format', 'b64_json');
+  form.append('image', options.image);
+
+  if (options.mask) form.append('mask', options.mask);
+  if (options.size) form.append('size', options.size);
+  if (options.quality) form.append('quality', options.quality);
+  if (options.background) form.append('background', options.background);
+  if (options.output_format) form.append('output_format', options.output_format);
+  if (options.output_compression) form.append('output_compression', String(options.output_compression));
+
+  const response = await apiFetch(resolveImagesEndpoint(options.url, 'edits'), {
+    method: 'POST',
+    body: form,
+    signal: options.signal,
+  }, options.apiKey);
+
+  const payload = await response.json();
+  const results = normalizeImageResults(payload, options.output_format || 'png');
+  if (results.length === 0) {
+    throw new Error('Images API returned no edited images');
+  }
+  return results;
 }
