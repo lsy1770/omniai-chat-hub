@@ -4,7 +4,6 @@ import { useTheme } from './hooks/useTheme';
 import { MessageBubble } from './components/chat/MessageBubble';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ImagePreview } from './components/ui/ImagePreview';
-import { ImageStudio } from './components/image/ImageStudio';
 import { HtmlPreview } from './components/ui/HtmlPreview';
 import { ModelSelector } from './components/chat/ModelSelector';
 import { ToastContainer } from './components/ui/ToastContainer';
@@ -39,7 +38,6 @@ function App() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [isImageStudioOpen, setIsImageStudioOpen] = useState(false);
   const [htmlPreviewContent, setHtmlPreviewContent] = useState<string | null>(null); // HTML预览内容
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端侧边栏状态
 
@@ -139,11 +137,6 @@ function App() {
     <div className="flex h-screen md:p-4 md:gap-6 bg-light dark:bg-dark overflow-hidden font-sans">
       <ToastContainer />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <ImageStudio
-        isOpen={isImageStudioOpen}
-        onClose={() => setIsImageStudioOpen(false)}
-        onImageClick={(src) => setPreviewImage(src)}
-      />
       <ImagePreview src={previewImage} onClose={() => setPreviewImage(null)} />
       <HtmlPreview htmlContent={htmlPreviewContent} onClose={() => setHtmlPreviewContent(null)} />
 
@@ -371,15 +364,6 @@ function App() {
                   <Paperclip size={18} className="md:w-5 md:h-5" />
                 </button>
               </div>
-
-              <button
-                onClick={() => setIsImageStudioOpen(true)}
-                className={`${neuBtn} w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-2xl shrink-0 text-blue-500`}
-                aria-label="Open OpenAI image studio"
-                title="OpenAI Image Studio"
-              >
-                <ImageIcon size={20} className="md:w-6 md:h-6" />
-              </button>
 
               <button
                 onClick={isGenerating ? stopGeneration : handleSend}

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { ChatSession, Message } from '../types';
 import { db } from '../lib/db';
-import { streamCompletion, fetchModels, type ModelResponse } from '../lib/api'; // 引入新函数
+import { streamCompletion, fetchModels, generateOpenAIImage, type ModelResponse } from '../lib/api';
 import { useSettingsStore } from './useSettingsStore';
 import { useToastStore } from './useToastStore';
 
@@ -215,9 +215,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     let fullContent = '';
     
-    // 3. 发送请求
+    // 如果是图像生成模型
+    if (state.currentModelId.toLowerCase().includes('image') || state.currentModelId.toLowerCase().includes('dall-e')) {
+      try {
+        const lastUserMsg = session.messages.slice().reverse().find(m => m.role === 'user');
+        const prompt = lastUserMsg ? lastUserMsg.content : 'A random beautiful image';
+        
+        const images = await generateOpenAIImage({
+          url: proxyUrl,
+          apiKey: apiKey,
+          model: state.currentModelId,
+          prompt: prompt,
+          n: 1,
+          size: '1024x1024',
+          signal: controller.signal
+        });
+        
+        const markdown = images.map((img) => `![Generated Image](${img.src})${img.revisedPrompt ? `\n\n*Revised prompt: ${img.revisedPrompt}*` : ''}`).join('\n\n');
+        
+        set(s => {
+          const sessIdx = s.sessions.findIndex(sess => sess.id === sessionId);
+          if (sessIdx === -1) return s;
+          const newSess = [...s.sessions];
+          const target = newSess[sessIdx].messages.find(m => m.id === aiMsgId);
+          if (target) target.content = markdown;
+          return { sessions: newSess };
+        });
+
+        const sDB = await db.sessions.get(sessionId);
+        if (sDB) {
+          const targetMsg = sDB.messages.find(m => m.id === aiMsgId);
+          if (targetMsg) targetMsg.content = markdown;
+          sDB.updatedAt = Date.now();
+          await db.sessions.put(sDB);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          useToastStore.getState().addToast('图像生成已取消', 'info', 2000);
+        } else {
+          useToastStore.getState().addToast(`图像生成失败: ${err.message}`, 'error', 5000);
+          console.error('Image Generation error:', err);
+        }
+      } finally {
+        set({ isGenerating: false, abortController: null });
+      }
+      return;
+    }
+
+    // 3. 正常文本请求
     await streamCompletion({
-      // ... 其他参数不变
       url: proxyUrl,
       apiKey: apiKey,
       model: state.currentModelId,

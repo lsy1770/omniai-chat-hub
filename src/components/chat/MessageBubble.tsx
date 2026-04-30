@@ -3,6 +3,10 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import 'katex/dist/katex.min.css';
 import type { Message } from '../../types';
 import { Bot, User, Copy, Check, Download, Maximize2, FileText, Code } from 'lucide-react';
 
@@ -82,15 +86,19 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick, onHtmlPr
         
         {/* --- 新增：显示附件图片 --- */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className={`flex flex-wrap gap-2 mb-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+          <div className={`flex flex-wrap gap-3 mb-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
             {message.attachments.map((src, index) => (
-              <img 
-                key={index}
-                src={src}
-                alt="attachment"
-                onClick={() => onImageClick && onImageClick(src)}
-                className="w-32 h-32 object-cover rounded-xl shadow-neu-light dark:shadow-neu-dark cursor-zoom-in border-2 border-white dark:border-gray-700 hover:scale-105 transition-transform"
-              />
+              <div key={index} className="relative group/attachment">
+                <img 
+                  src={src}
+                  alt="attachment"
+                  onClick={() => onImageClick && onImageClick(src)}
+                  className="max-w-[240px] md:max-w-sm h-auto max-h-[300px] object-contain rounded-2xl shadow-neu-light dark:shadow-neu-dark cursor-zoom-in border-4 border-white dark:border-gray-800 hover:scale-[1.02] transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/attachment:opacity-100 transition-opacity rounded-2xl pointer-events-none flex items-center justify-center backdrop-blur-[2px]">
+                  <Maximize2 size={24} className="text-white drop-shadow-md" />
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -108,14 +116,16 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick, onHtmlPr
           ) : (
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeRaw, rehypeKatex]}
                 components={{
                       // 自定义代码块渲染
                       code({ node, inline, className, children, ...props }: any) {
                         const match = /language-(\w+)/.exec(className || '');
                         const codeContent = String(children).replace(/\n$/, '');
-                        // 独立状态管理代码块复制
                         const [codeCopied, setCodeCopied] = React.useState(false);
+                        const lang = match ? match[1].toLowerCase() : '';
+                        const isHtmlCode = ['html', 'xml', 'svg'].includes(lang);
 
                         const handleCodeCopy = () => {
                           navigator.clipboard.writeText(codeContent);
@@ -127,14 +137,31 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick, onHtmlPr
                           <div className="rounded-xl overflow-hidden my-4 shadow-neu-pressed-light dark:shadow-neu-pressed-dark group/code">
                             <div className="bg-gray-200 dark:bg-gray-800/50 px-4 py-2 text-xs text-gray-500 font-bold uppercase tracking-wider flex justify-between items-center">
                                <span>{match[1]}</span>
-                               {/* 代码块复制按钮 */}
-                               <button
-                                 onClick={handleCodeCopy}
-                                 className="flex items-center gap-1 hover:text-blue-500 transition"
-                               >
-                                 {codeCopied ? <Check size={14} className="text-green-500"/> : <Copy size={14} />}
-                                 <span className="text-[10px]">{codeCopied ? 'Copied' : 'Copy'}</span>
-                               </button>
+                               
+                               <div className="flex items-center gap-4">
+                                 {/* 网页代码预览按钮 */}
+                                 {isHtmlCode && (
+                                   <button
+                                     onClick={() => {
+                                       if (onHtmlPreview) onHtmlPreview(codeContent);
+                                     }}
+                                     className="flex items-center gap-1 hover:text-blue-500 transition text-blue-400"
+                                     title="预览这段代码"
+                                   >
+                                     <Code size={14} />
+                                     <span className="text-[10px]">Preview</span>
+                                   </button>
+                                 )}
+
+                                 {/* 代码块复制按钮 */}
+                                 <button
+                                   onClick={handleCodeCopy}
+                                   className="flex items-center gap-1 hover:text-blue-500 transition"
+                                 >
+                                   {codeCopied ? <Check size={14} className="text-green-500"/> : <Copy size={14} />}
+                                   <span className="text-[10px]">{codeCopied ? 'Copied' : 'Copy'}</span>
+                                 </button>
+                               </div>
                             </div>
                             {/* ✅ 添加横向滚动 */}
                             <div className="overflow-x-auto">
@@ -158,37 +185,42 @@ export const MessageBubble: React.FC<Props> = ({ message, onImageClick, onHtmlPr
                       // 自定义图片渲染
                       img({ src, alt }) {
                         return (
-                          <div className="relative group/img my-4 inline-block rounded-xl overflow-hidden shadow-neu-pressed-light dark:shadow-neu-pressed-dark">
-                            <img
-                              src={src}
-                              alt={alt}
-                              className="max-w-full h-auto rounded-xl cursor-zoom-in"
-                              onClick={() => onImageClick && src && onImageClick(src)}
-                            />
-                            {/* 图片悬浮工具栏 */}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-[2px]">
-                               <button
-                                 onClick={() => onImageClick && src && onImageClick(src)}
-                                 className="p-3 rounded-full bg-white/20 text-white hover:bg-white/40 transition backdrop-blur-md"
-                                 title="放大查看"
-                               >
-                                 <Maximize2 size={20} />
-                               </button>
-                               <button
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   if(src) {
-                                     const link = document.createElement('a');
-                                     link.href = src;
-                                     link.download = 'image.png';
-                                     link.click();
-                                   }
-                                 }}
-                                 className="p-3 rounded-full bg-white/20 text-white hover:bg-white/40 transition backdrop-blur-md"
-                                 title="下载图片"
-                               >
-                                 <Download size={20} />
-                               </button>
+                          <div className="relative group/img my-6 flex justify-center w-full">
+                            <div className="relative inline-block rounded-2xl overflow-hidden shadow-neu-pressed-light dark:shadow-neu-pressed-dark border-4 border-white dark:border-gray-800 hover:shadow-lg transition-shadow">
+                              <img
+                                src={src}
+                                alt={alt}
+                                className="max-w-[100%] md:max-w-[600px] h-auto max-h-[500px] object-contain rounded-xl cursor-zoom-in"
+                                onClick={() => onImageClick && src && onImageClick(src)}
+                              />
+                              {/* 图片悬浮工具栏 */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-6 backdrop-blur-[2px] pointer-events-none">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onImageClick && src && onImageClick(src);
+                                  }}
+                                  className="pointer-events-auto p-4 rounded-full bg-white/20 text-white hover:bg-white/40 hover:scale-110 transition-all backdrop-blur-md shadow-lg"
+                                  title="放大查看"
+                                >
+                                  <Maximize2 size={24} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if(src) {
+                                      const link = document.createElement('a');
+                                      link.href = src;
+                                      link.download = 'image.png';
+                                      link.click();
+                                    }
+                                  }}
+                                  className="pointer-events-auto p-4 rounded-full bg-white/20 text-white hover:bg-white/40 hover:scale-110 transition-all backdrop-blur-md shadow-lg"
+                                  title="下载图片"
+                                >
+                                  <Download size={24} />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
